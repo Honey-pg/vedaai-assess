@@ -136,6 +136,7 @@ Typical split deployment:
    - Set `PORT`, `MONGODB_URI`, `REDIS_URL`, `FRONTEND_URL` (your live frontend origin, no trailing slash), `JWT_SECRET` (long random string), and AI variables (`GEMINI_API_KEY`, etc.) in the provider’s env UI.
    - `FRONTEND_URL` drives **CORS** and **Socket.io** origins (`apps/backend/src/app.ts`, `apps/backend/src/socket/index.ts`).
    - Health check: **`GET /health`** on the API origin.
+   - **Render + this monorepo:** leave Root Directory blank (repo root). **Build:** `npm ci && npm run build:backend`. **Start:** **`node apps/backend/dist/apps/backend/src/server.js`** (nested path is intentional with the current `tsconfig`; see [`render.yaml`](render.yaml)). `typescript` and `@types/*` live under **`dependencies`** in **`apps/backend`** so production installs still run `tsc`.
 
 2. **Frontend** (e.g. Vercel)
    - Build `apps/frontend`.

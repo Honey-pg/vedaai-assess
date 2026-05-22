@@ -1,0 +1,12 @@
+# Render Blueprint — backend web service (monorepo root = repo root where this file lives).
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: vedaai-backend
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build:backend && test -f apps/backend/dist/apps/backend/src/server.js
+    startCommand: node apps/backend/dist/apps/backend/src/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "20.19.0"

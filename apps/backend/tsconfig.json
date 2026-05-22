@@ -18,6 +18,6 @@
       "@vedaai/shared/*": ["../../packages/shared/*"]
     }
   },
-  "include": ["src/**/*", "../../packages/shared/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
