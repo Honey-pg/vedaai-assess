@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Builds / compiled output
+**/dist/
+apps/backend/dist/
+
+# Logs & OS noise
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.DS_Store
+
+# Test / coverage
+coverage/
+
+# --- Secrets & env files ---
+# Never commit real credentials. Only `.env.example` (placeholders) may be tracked.
+.env
+.env.*
+!.env.example
+
+# Env-style filenames elsewhere (e.g. staging.env)
+*.env
+
+# Common alternate naming
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Next.js (root-level ignores for monorepo clarity)
+apps/frontend/.next/
+apps/frontend/out/
