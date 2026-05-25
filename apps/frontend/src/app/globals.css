@@ -49,32 +49,35 @@
 }
 
 :root {
-  --background: #F8F9FC;
-  --foreground: #1A202C;
+  --dash-header-bg: #ffffff;
+  --background: #F8F9FA;
+  --foreground: #1A1A1A;
   --card: #FFFFFF;
-  --card-foreground: #1A202C;
+  --card-foreground: #1A1A1A;
   --popover: #FFFFFF;
-  --popover-foreground: #1A202C;
-  --primary: #FF6B35;
+  --popover-foreground: #1A1A1A;
+  --primary: #FF5C28;
   --primary-foreground: #FFFFFF;
   --secondary: #F0F4FF;
   --secondary-foreground: #1A202C;
-  --muted: #F8F9FC;
+  --muted: #F3F4F6;
   --muted-foreground: #718096;
-  --accent: #FFF4F0;
-  --accent-foreground: #FF6B35;
+  --accent: #FFF0E8;
+  --accent-foreground: #FF5C28;
   --destructive: #EF4444;
-  --border: #E8ECF4;
+  --border: #EAECF0;
   --input: #E8ECF4;
-  --ring: #FF6B35;
-  --chart-1: #FF6B35;
+  --ring: #FF5C28;
+  --chart-1: #FF5C28;
   --chart-2: #3B82F6;
   --chart-3: #10B981;
   --chart-4: #F59E0B;
   --chart-5: #8B5CF6;
-  --radius: 0.625rem;
+  --radius: 0.875rem;
   --sidebar-width: 260px;
   --topbar-height: 64px;
+  --surface-elevated: rgba(255, 255, 255, 0.92);
+  --shadow-veda-soft: 0 22px 60px rgba(26, 32, 44, 0.1);
 }
 
 @layer base {
@@ -89,24 +92,70 @@
   }
 }
 
+/* Typography helpers (Bricolage + fallbacks). */
+.text-normal {
+  font-family: var(--font-bricolage), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.04em;
+}
+
+.text-heading {
+  font-family: var(--font-bricolage), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+
+.text-sidebar-item {
+  font-family: var(--font-bricolage), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.04em;
+}
 .assignment-card {
-  transition: all 150ms ease;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .assignment-card {
+    transition: none;
+  }
 }
 .assignment-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+  box-shadow: 0 4px 12px rgba(26, 32, 44, 0.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .assignment-card:hover {
+    transform: none;
+  }
 }
 
-button:active {
-  transform: scale(0.97);
+@media (prefers-reduced-motion: no-preference) {
+  button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
 }
 
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .page-enter {
-  animation: fadeSlideUp 300ms ease forwards;
+  animation: fadeSlideUp 280ms ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media print {

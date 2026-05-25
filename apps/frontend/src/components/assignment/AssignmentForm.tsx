@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Minus, Loader2, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { FileUpload } from './FileUpload';
 import { assignmentFormSchema, AssignmentFormData } from '@/lib/utils/validation';
+import { fetchTeacherClasses, fetchTeacherClass, type TeacherClassListItem } from '@/lib/api/classesApi';
 import { createAssignment } from '@/lib/api/assignments';
 import { useAssignmentStore } from '@/lib/store/assignmentStore';
 
@@ -20,9 +23,28 @@ const questionTypeOptions = [
 
 export function AssignmentForm() {
   const router = useRouter();
+  const { isLoaded: authLoaded, userId } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [inviteEmailsRaw, setInviteEmailsRaw] = useState('');
+  const [studentIdsJson, setStudentIdsJson] = useState('[]');
+  const [savedClasses, setSavedClasses] = useState<TeacherClassListItem[]>([]);
+  const [importClassId, setImportClassId] = useState('');
+  const [importBusy, setImportBusy] = useState(false);
   const { uploadedFile } = useAssignmentStore();
+
+  useEffect(() => {
+    if (!authLoaded || !userId) return;
+    let cancel = false;
+    fetchTeacherClasses()
+      .then((rows) => {
+        if (!cancel) setSavedClasses(rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+  }, [authLoaded, userId]);
 
   const {
     register,
@@ -56,6 +78,38 @@ export function AssignmentForm() {
   const totalQuestions = watchedConfigs?.reduce((sum, c) => sum + (c?.count || 0), 0) || 0;
   const totalMarks = watchedConfigs?.reduce((sum, c) => sum + (c?.count || 0) * (c?.marksPerQuestion || 0), 0) || 0;
 
+  function parseInviteEmails(raw: string): string[] {
+    const parts = raw.split(/[\n,;]+/).map((s) => s.trim().toLowerCase());
+    return [...new Set(parts.filter((p) => p.length > 3 && p.includes('@')))];
+  }
+
+  const mergeSavedClassIntoInvites = async () => {
+    if (!importClassId) return;
+    setSubmitError(null);
+    setImportBusy(true);
+    try {
+      const c = await fetchTeacherClass(importClassId);
+      const fromText = parseInviteEmails(inviteEmailsRaw);
+      const mergedEmails = [...new Set([...fromText, ...(c.studentEmails ?? [])])];
+      setInviteEmailsRaw(mergedEmails.join('\n'));
+
+      let prevIds: string[] = [];
+      try {
+        const parsed = JSON.parse(studentIdsJson) as unknown;
+        if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) prevIds = parsed;
+      } catch {
+        prevIds = [];
+      }
+      const mergedIds = [...new Set([...prevIds, ...(c.studentIds ?? [])])];
+      setStudentIdsJson(JSON.stringify(mergedIds));
+      setSubmitError(null);
+    } catch {
+      setSubmitError('Could not load saved class roster. Try again.');
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
   const adjustValue = (index: number, field: 'count' | 'marksPerQuestion', delta: number) => {
     const current = watchedConfigs[index]?.[field] || 1;
     const next = Math.max(1, Math.min(field === 'count' ? 50 : 100, current + delta));
@@ -75,6 +129,24 @@ export function AssignmentForm() {
       formData.append('questionConfigs', JSON.stringify(data.questionConfigs));
       if (data.additionalInstructions) formData.append('additionalInstructions', data.additionalInstructions);
       if (uploadedFile) formData.append('file', uploadedFile);
+
+      const inviteEmails = parseInviteEmails(inviteEmailsRaw);
+      formData.append('studentEmails', JSON.stringify(inviteEmails));
+
+      try {
+        const parsed = JSON.parse(studentIdsJson) as unknown;
+        if (!Array.isArray(parsed) || !parsed.every((x) => typeof x === 'string')) {
+          setSubmitError('Advanced: student IDs must be a JSON array of strings, e.g. ["user_xxx"]');
+          setIsSubmitting(false);
+          return;
+        }
+        formData.append('studentIds', JSON.stringify(parsed));
+      } catch {
+        setSubmitError('Advanced: invalid JSON for student IDs. Use [], or ["user_aaa","user_bbb"].');
+        setIsSubmitting(false);
+        return;
+      }
+
       const result = await createAssignment(formData);
       router.push(`/assignments/${result.assignmentId}`);
     } catch (error) {
@@ -243,6 +315,80 @@ export function AssignmentForm() {
             rows={3}
             className="w-full border border-[#E8ECF4] rounded-lg p-3 text-sm placeholder:text-[#A0AEC0] focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35]/20 outline-none resize-none"
           />
+        </div>
+
+        <div className="mt-5 rounded-xl border border-[#edf0f9] bg-[#fafbff] px-4 py-3">
+          <label className="text-sm font-medium text-[#1A202C] mb-2 flex flex-wrap gap-2 justify-between items-baseline">
+            <span>Use a saved roster</span>
+            <Link
+              href="/classes"
+              className="text-xs font-semibold text-[#FF6B35] hover:underline underline-offset-2"
+            >
+              Manage classes →
+            </Link>
+          </label>
+          {savedClasses.length > 0 ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch mb-4">
+              <select
+                value={importClassId}
+                onChange={(e) => setImportClassId(e.target.value)}
+                className="flex-1 h-11 border border-[#E8ECF4] rounded-lg px-3 text-sm bg-white focus:border-[#FF6B35] outline-none"
+              >
+                <option value="">Select one of your cohorts…</option>
+                {savedClasses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.subject ? ` · ${c.subject}` : ''}{' '}
+                    ({Math.max(c.inviteCount, c.linkedAccountCount)} on roster)
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={importBusy || !importClassId}
+                onClick={() => void mergeSavedClassIntoInvites()}
+                className="h-11 px-4 shrink-0 rounded-lg bg-[#111] text-white text-sm font-bold hover:bg-black disabled:opacity-45 whitespace-nowrap"
+              >
+                {importBusy ? 'Merging…' : 'Merge into invites'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground mb-4">
+              No saved cohorts yet. Create one under <strong>My Classes</strong> — then importing takes one click here.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-5">
+          <label className="text-sm font-medium text-[#1A202C] mb-2 block">
+            Invite students by email <span className="text-muted-foreground font-normal">(recommended)</span>
+          </label>
+          <textarea
+            value={inviteEmailsRaw}
+            onChange={(e) => setInviteEmailsRaw(e.target.value)}
+            placeholder="student1@school.edu, student2@school.edu (one per line or comma-separated)"
+            rows={4}
+            className="w-full border border-[#E8ECF4] rounded-lg p-3 text-sm placeholder:text-[#A0AEC0] focus:border-[#FF6B35] outline-none resize-none"
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Students see an assignment here when its list includes the same email they use to sign in to VedaAI.
+          </p>
+        </div>
+
+        <div className="mt-5">
+          <label className="text-sm font-medium text-[#1A202C] mb-2 block">
+            Alternative: Clerk user IDs <span className="text-muted-foreground font-normal">(advanced, optional)</span>
+          </label>
+          <textarea
+            value={studentIdsJson}
+            onChange={(e) => setStudentIdsJson(e.target.value)}
+            placeholder='JSON array — e.g. ["user_2abc...", "user_9xyz..."] or []'
+            rows={3}
+            className="w-full border border-[#E8ECF4] rounded-lg p-3 text-xs sm:text-sm placeholder:text-[#A0AEC0] focus:border-[#FF6B35] outline-none resize-none font-mono"
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Use this if you already have internal user IDs instead of emails.
+          </p>
         </div>
 
         {submitError && (

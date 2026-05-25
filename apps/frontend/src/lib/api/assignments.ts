@@ -1,25 +1,7 @@
-import axios from 'axios';
+import { apiClient, API_BACKEND_ORIGIN, normalizeBackendOrigin } from '@/lib/api/http';
 
-/**
- * Frontend calls `${origin}/api/...`.
- * Normalize `NEXT_PUBLIC_API_URL`: trim slashes and strip a mistaken trailing `/api`
- * so we never hit `/api/api/assignments`.
- */
-export function normalizeBackendOrigin(raw?: string): string {
-  let s = (raw ?? '').trim().replace(/\/+$/, '');
-  if (/\/api$/i.test(s)) {
-    s = s.replace(/\/api$/i, '').replace(/\/+$/, '');
-  }
-  return s || 'http://localhost:4000';
-}
-
-/** Hostname/port the browser should call (shown in connectivity errors). */
-export const API_BACKEND_ORIGIN = normalizeBackendOrigin(process.env.NEXT_PUBLIC_API_URL);
-
-const api = axios.create({
-  baseURL: `${API_BACKEND_ORIGIN}/api`,
-  timeout: 30000,
-});
+/** Re-export for assignment pages that show hostname in errors */
+export { API_BACKEND_ORIGIN, normalizeBackendOrigin };
 
 export interface CreateAssignmentResponse {
   assignmentId: string;
@@ -38,14 +20,14 @@ export interface AssignmentListResponse {
 }
 
 export async function createAssignment(formData: FormData): Promise<CreateAssignmentResponse> {
-  const { data } = await api.post<CreateAssignmentResponse>('/assignments', formData, {
+  const { data } = await apiClient.post<CreateAssignmentResponse>('/assignments', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return data;
 }
 
 export async function getAssignment(id: string): Promise<Record<string, unknown>> {
-  const { data } = await api.get(`/assignments/${id}`);
+  const { data } = await apiClient.get(`/assignments/${id}`);
   return data;
 }
 
@@ -56,7 +38,7 @@ export async function listAssignments(
 ): Promise<AssignmentListResponse> {
   const params: Record<string, string | number> = { page };
   if (status) params.status = status;
-  const { data } = await api.get<AssignmentListResponse>('/assignments', {
+  const { data } = await apiClient.get<AssignmentListResponse>('/assignments', {
     params,
     signal,
   });
@@ -66,10 +48,10 @@ export async function listAssignments(
 export async function regenerateAssignment(
   id: string
 ): Promise<{ jobId: string; status: string }> {
-  const { data } = await api.post(`/assignments/${id}/regenerate`);
+  const { data } = await apiClient.post(`/assignments/${id}/regenerate`);
   return data;
 }
 
 export async function deleteAssignment(id: string): Promise<void> {
-  await api.delete(`/assignments/${id}`);
+  await apiClient.delete(`/assignments/${id}`);
 }

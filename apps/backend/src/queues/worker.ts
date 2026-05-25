@@ -65,7 +65,7 @@ const worker = new Worker(
         type: 'job:completed',
         assignmentId,
         progress: 100,
-        result,
+        message: 'Your question paper is ready.',
       };
       emitToAssignment(assignmentId, 'job:completed', completeEvent);
 

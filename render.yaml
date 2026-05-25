@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     buildCommand: npm ci && npm run build:backend && test -f apps/backend/dist/apps/backend/src/server.js
-    startCommand: npm run start:backend
+    startCommand: cd apps/backend && npm start
     envVars:
       - key: NODE_VERSION
         value: "20.19.0"

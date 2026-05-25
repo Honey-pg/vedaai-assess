@@ -2,6 +2,12 @@ import mongoose, { Schema, Document } from 'mongoose';
 import type { AssignmentInput, JobStatus, GeneratedPaper } from '@vedaai/shared/types';
 
 export interface IAssignment extends Document {
+  /** Clerk user id of the owning teacher */
+  teacherId: string;
+  /** Clerk user ids enrolled to view / receive this assignment */
+  studentIds: string[];
+  /** Account emails (normalized lowercase) that may access this assignment alongside studentIds */
+  studentEmails: string[];
   input: AssignmentInput;
   status: JobStatus;
   jobId?: string;
@@ -45,6 +51,9 @@ const AssignmentInputSchema = new Schema(
 
 const AssignmentSchema = new Schema(
   {
+    teacherId: { type: String, required: true, index: true },
+    studentIds: { type: [String], default: [], index: true },
+    studentEmails: { type: [String], default: [], index: true },
     input: { type: AssignmentInputSchema, required: true },
     status: {
       type: String,
@@ -62,5 +71,8 @@ const AssignmentSchema = new Schema(
 
 AssignmentSchema.index({ status: 1 });
 AssignmentSchema.index({ createdAt: -1 });
+AssignmentSchema.index({ teacherId: 1, createdAt: -1 });
+AssignmentSchema.index({ studentIds: 1 });
 
-export const AssignmentModel = mongoose.model<IAssignment>('Assignment', AssignmentSchema);
+export const AssignmentModel =
+  mongoose.models.Assignment ?? mongoose.model<IAssignment>('Assignment', AssignmentSchema);

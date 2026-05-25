@@ -21,9 +21,14 @@ coverage/
 .env
 .env.*
 !.env.example
+.env.local
+apps/frontend/.env.local
 
 # Env-style filenames elsewhere (e.g. staging.env)
 *.env
+
+# Clerk local dev cache (may contain secrets)
+**/.clerk/
 
 # Common alternate naming
 *.pem

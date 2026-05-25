@@ -26,11 +26,21 @@ const diffStyle: Record<string, string> = {
   hard: 'bg-[#FEF2F2] text-[#DC2626] border-[#FECACA]',
 };
 
-export function PaperView({ paper, assignmentId }: { paper: GeneratedPaper; assignmentId: string }) {
+export function PaperView({
+  paper,
+  assignmentId,
+  variant = 'teacher',
+}: {
+  paper: GeneratedPaper;
+  assignmentId: string;
+  variant?: 'teacher' | 'student';
+}) {
   const router = useRouter();
   const [isDownloading, setIsDownloading] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showAnswers, setShowAnswers] = useState(false);
+  const isStudent = variant === 'student';
+  const assignmentsListPath = isStudent ? '/student/assignments' : '/assignments';
 
   const sectionQuestionStarts = paper.sections.map((_, index) =>
     1 + paper.sections.slice(0, index).reduce((sum, s) => sum + s.questions.length, 0)
@@ -45,7 +55,7 @@ export function PaperView({ paper, assignmentId }: { paper: GeneratedPaper; assi
       const doc = React.createElement(PaperPDFDocument, {
         paper,
         institutionName: 'Delhi Public School, Sector-4, Bokaro',
-        showAnswers: true,
+        showAnswers: !isStudent,
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const blob = await pdfRenderer.pdf(doc as any).toBlob();
@@ -62,6 +72,7 @@ export function PaperView({ paper, assignmentId }: { paper: GeneratedPaper; assi
   };
 
   const handleRegenerate = async () => {
+    if (isStudent) return;
     setIsRegenerating(true);
     await regenerateAssignment(assignmentId);
     router.push(`/assignments/${assignmentId}`);
@@ -73,17 +84,31 @@ export function PaperView({ paper, assignmentId }: { paper: GeneratedPaper; assi
       <div className="sticky top-16 z-10 bg-white border-b border-[#E8ECF4] no-print">
         <div className="max-w-[800px] mx-auto px-4 md:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <button type="button" onClick={() => router.push('/assignments')} className="text-[#4A5568] hover:text-[#1A202C] shrink-0">
+            <button
+              type="button"
+              onClick={() => router.push(assignmentsListPath)}
+              className="text-[#4A5568] hover:text-[#1A202C] shrink-0"
+            >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <span className="text-base font-semibold text-[#1A202C] truncate">{paper.title}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={handleRegenerate} disabled={isRegenerating}
-              className="flex items-center gap-1.5 text-sm text-[#4A5568] border border-[#E8ECF4] bg-white px-4 py-2 rounded-lg hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors">
-              {isRegenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Regenerate
-            </button>
+            {!isStudent ? (
+              <button
+                type="button"
+                onClick={handleRegenerate}
+                disabled={isRegenerating}
+                className="flex items-center gap-1.5 text-sm text-[#4A5568] border border-[#E8ECF4] bg-white px-4 py-2 rounded-lg hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors"
+              >
+                {isRegenerating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Regenerate
+              </button>
+            ) : null}
             <button type="button" onClick={handleDownloadPDF} disabled={isDownloading}
               className="flex items-center gap-1.5 text-sm font-medium text-white bg-[#FF6B35] px-4 py-2 rounded-lg hover:bg-[#E55A24] transition-colors">
               {isDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
@@ -188,42 +213,48 @@ export function PaperView({ paper, assignmentId }: { paper: GeneratedPaper; assi
           </div>
         </div>
 
-        {/* Answer Key Accordion */}
-        <div className="mt-6">
-          <button
-            onClick={() => setShowAnswers(!showAnswers)}
-            className="flex items-center gap-2 text-sm font-medium text-[#FF6B35] hover:text-[#E55A24] transition-colors"
-          >
-            {showAnswers ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            {showAnswers ? 'Hide Answer Key' : 'Show Answer Key'}
-          </button>
+        {!isStudent ? (
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowAnswers(!showAnswers)}
+              className="flex items-center gap-2 text-sm font-medium text-[#FF6B35] hover:text-[#E55A24] transition-colors"
+            >
+              {showAnswers ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {showAnswers ? 'Hide Answer Key' : 'Show Answer Key'}
+            </button>
 
-          {showAnswers && (
-            <div className="mt-3 bg-[#F8F9FC] rounded-[10px] p-5">
-              <h3 className="text-sm font-bold text-[#1A202C] mb-3">Answer Key</h3>
-              <p className="text-xs text-[#718096] mb-3">
-                Numbers match question order above. Older papers may omit answers until you use <strong>Regenerate</strong>.
-              </p>
-              <ul className="space-y-2 list-none">
-                {paper.sections.flatMap((section, sectionIndex) =>
-                  section.questions.map((q, qi) => {
-                    const globalNum = sectionQuestionStarts[sectionIndex] + qi;
-                    const ans =
-                      typeof q.correctAnswer === 'string' ? q.correctAnswer.trim() : '';
-                    return (
-                      <li key={q.id} className="text-sm leading-relaxed border-b border-[#E8ECF4]/80 pb-2 last:border-0 last:pb-0">
-                        <span className="font-bold text-[#1A202C]">{globalNum}. </span>
-                        <span className={ans ? 'text-[#4A5568]' : 'text-[#A0AEC0] italic'}>
-                          {ans || 'Answer not saved for this question — regenerate the assignment to populate from the AI.'}
-                        </span>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
-          )}
-        </div>
+            {showAnswers && (
+              <div className="mt-3 bg-[#F8F9FC] rounded-[10px] p-5">
+                <h3 className="text-sm font-bold text-[#1A202C] mb-3">Answer Key</h3>
+                <p className="text-xs text-[#718096] mb-3">
+                  Numbers match question order above. Older papers may omit answers until you use <strong>Regenerate</strong>.
+                </p>
+                <ul className="space-y-2 list-none">
+                  {paper.sections.flatMap((section, sectionIndex) =>
+                    section.questions.map((q, qi) => {
+                      const globalNum = sectionQuestionStarts[sectionIndex] + qi;
+                      const ans =
+                        typeof q.correctAnswer === 'string' ? q.correctAnswer.trim() : '';
+                      return (
+                        <li
+                          key={q.id}
+                          className="text-sm leading-relaxed border-b border-[#E8ECF4]/80 pb-2 last:border-0 last:pb-0"
+                        >
+                          <span className="font-bold text-[#1A202C]">{globalNum}. </span>
+                          <span className={ans ? 'text-[#4A5568]' : 'text-[#A0AEC0] italic'}>
+                            {ans ||
+                              'Answer not saved for this question — regenerate the assignment to populate from the AI.'}
+                          </span>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : null}
         </div>
       </div>
     </div>
